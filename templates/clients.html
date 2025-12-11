@@ -1,0 +1,396 @@
+{% extends "base.html" %}
+{% block title %}Client Management - GTMS Admin{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Header with Stats -->
+    <div class="row mb-4">
+        <div class="col-md-8">
+            <h2><i class="fas fa-building"></i> Client Management</h2>
+            <p class="text-muted">Manage your customers and companies</p>
+        </div>
+        <div class="col-md-4 text-end">
+            <button class="btn btn-success me-2" onclick="location.href='{{ url_for('export_clients') }}'">
+                <i class="fas fa-file-excel"></i> Export CSV
+            </button>
+            <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addClientModal">
+                <i class="fas fa-plus"></i> Add New Client
+            </button>
+        </div>
+    </div>
+
+    <!-- Statistics Cards -->
+    <div class="row mb-4">
+        <div class="col-md-3">
+            <div class="card text-center">
+                <div class="card-body">
+                    <h3 class="text-primary">{{ total_clients }}</h3>
+                    <p class="text-muted mb-0">Total Clients</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card text-center">
+                <div class="card-body">
+                    <h3 class="text-success">{{ active_clients }}</h3>
+                    <p class="text-muted mb-0">Active Clients</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card text-center">
+                <div class="card-body">
+                    <h3 class="text-warning">{{ total_clients - active_clients }}</h3>
+                    <p class="text-muted mb-0">Inactive Clients</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card text-center">
+                <div class="card-body">
+                    <h3 class="text-info">{{ clients|length }}</h3>
+                    <p class="text-muted mb-0">Showing</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Search & Filter Bar -->
+    <div class="card mb-4">
+        <div class="card-body">
+            <form method="GET" action="{{ url_for('clients_list') }}" class="row g-3">
+                <div class="col-md-5">
+                    <div class="input-group">
+                        <span class="input-group-text"><i class="fas fa-search"></i></span>
+                        <input type="text" class="form-control" name="search" 
+                               placeholder="Search by name, contact, email, phone, GST..." 
+                               value="{{ search }}">
+                    </div>
+                </div>
+                <div class="col-md-2">
+                    <select class="form-select" name="status">
+                        <option value="">All Status</option>
+                        <option value="active" {% if status == 'active' %}selected{% endif %}>Active</option>
+                        <option value="inactive" {% if status == 'inactive' %}selected{% endif %}>Inactive</option>
+                    </select>
+                </div>
+                <div class="col-md-2">
+                    <select class="form-select" name="sort">
+                        <option value="created_at" {% if sort_by == 'created_at' %}selected{% endif %}>Newest First</option>
+                        <option value="name" {% if sort_by == 'name' %}selected{% endif %}>Name A-Z</option>
+                        <option value="licenses" {% if sort_by == 'licenses' %}selected{% endif %}>Most Licenses</option>
+                    </select>
+                </div>
+                <div class="col-md-3">
+                    <button type="submit" class="btn btn-primary me-2">
+                        <i class="fas fa-filter"></i> Apply
+                    </button>
+                    <a href="{{ url_for('clients_list') }}" class="btn btn-secondary">
+                        <i class="fas fa-redo"></i> Reset
+                    </a>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Clients Table -->
+    <div class="card">
+        <div class="card-body">
+            {% if clients %}
+            <div class="table-responsive">
+                <table class="table table-hover align-middle">
+                    <thead class="table-light">
+                        <tr>
+                            <th width="5%">ID</th>
+                            <th width="20%">Company Name</th>
+                            <th width="15%">Contact Person</th>
+                            <th width="15%">Email</th>
+                            <th width="10%">Phone</th>
+                            <th width="10%">GST Number</th>
+                            <th width="8%" class="text-center">Licenses</th>
+                            <th width="8%" class="text-center">Status</th>
+                            <th width="9%" class="text-center">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for c in clients %}
+                        <tr>
+                            <td>{{ c.id }}</td>
+                            <td>
+                                <strong>{{ c.name }}</strong>
+                                {% if c.notes %}
+                                <br><small class="text-muted">{{ c.notes[:40] }}{% if c.notes|length > 40 %}...{% endif %}</small>
+                                {% endif %}
+                            </td>
+                            <td>{{ c.contact_person or '-' }}</td>
+                            <td>
+                                {% if c.email %}
+                                <a href="mailto:{{ c.email }}"><i class="fas fa-envelope"></i> {{ c.email }}</a>
+                                {% else %}-{% endif %}
+                            </td>
+                            <td>
+                                {% if c.phone %}
+                                <a href="tel:{{ c.phone }}"><i class="fas fa-phone"></i> {{ c.phone }}</a>
+                                {% else %}-{% endif %}
+                            </td>
+                            <td>{{ c.gst_number or '-' }}</td>
+                            <td class="text-center">
+                                <a href="{{ url_for('view_client', client_id=c.id) }}" class="badge bg-info text-decoration-none">
+                                    {{ c.licenses|length }} License(s)
+                                </a>
+                            </td>
+                            <td class="text-center">
+                                {% if c.status == 'active' %}
+                                <span class="badge bg-success">Active</span>
+                                {% else %}
+                                <span class="badge bg-secondary">Inactive</span>
+                                {% endif %}
+                            </td>
+                            <td class="text-center">
+                                <div class="btn-group btn-group-sm" role="group">
+                                    <a href="{{ url_for('view_client', client_id=c.id) }}" 
+                                       class="btn btn-outline-info" title="View Details">
+                                        <i class="fas fa-eye"></i>
+                                    </a>
+                                    <button class="btn btn-outline-primary" 
+                                            onclick="editClient({{ c.id }}, '{{ c.name|replace("'", "\\'") }}', '{{ c.contact_person|replace("'", "\\'")|default('', true) }}', '{{ c.email|default('', true) }}', '{{ c.phone|default('', true) }}', '{{ c.address|replace("'", "\\'")|replace('\n', '\\n')|default('', true) }}', '{{ c.gst_number|default('', true) }}', '{{ c.status }}', '{{ c.notes|replace("'", "\\'")|replace('\n', '\\n')|default('', true) }}')"
+                                            title="Edit">
+                                        <i class="fas fa-edit"></i>
+                                    </button>
+                                    <button class="btn btn-outline-danger" 
+                                            onclick="deleteClient({{ c.id }}, '{{ c.name|replace("'", "\\'") }}')"
+                                            title="Delete">
+                                        <i class="fas fa-trash"></i>
+                                    </button>
+                                </div>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- Pagination -->
+            {% if pagination.pages > 1 %}
+            <nav aria-label="Page navigation" class="mt-4">
+                <ul class="pagination justify-content-center">
+                    <li class="page-item {% if not pagination.has_prev %}disabled{% endif %}">
+                        <a class="page-link" href="{{ url_for('clients_list', page=pagination.prev_num, search=search, status=status, sort=sort_by) }}">
+                            Previous
+                        </a>
+                    </li>
+                    
+                    {% for page_num in pagination.iter_pages(left_edge=1, right_edge=1, left_current=2, right_current=2) %}
+                        {% if page_num %}
+                            <li class="page-item {% if page_num == pagination.page %}active{% endif %}">
+                                <a class="page-link" href="{{ url_for('clients_list', page=page_num, search=search, status=status, sort=sort_by) }}">
+                                    {{ page_num }}
+                                </a>
+                            </li>
+                        {% else %}
+                            <li class="page-item disabled"><span class="page-link">...</span></li>
+                        {% endif %}
+                    {% endfor %}
+                    
+                    <li class="page-item {% if not pagination.has_next %}disabled{% endif %}">
+                        <a class="page-link" href="{{ url_for('clients_list', page=pagination.next_num, search=search, status=status, sort=sort_by) }}">
+                            Next
+                        </a>
+                    </li>
+                </ul>
+                <p class="text-center text-muted">
+                    Showing {{ pagination.per_page * (pagination.page - 1) + 1 }} 
+                    to {{ [pagination.per_page * pagination.page, pagination.total]|min }} 
+                    of {{ pagination.total }} clients
+                </p>
+            </nav>
+            {% endif %}
+
+            {% else %}
+            <div class="alert alert-info text-center">
+                <i class="fas fa-info-circle fa-3x mb-3"></i>
+                <h5>No Clients Found</h5>
+                <p>
+                    {% if search or status %}
+                    No clients match your search criteria. Try adjusting your filters.
+                    {% else %}
+                    Get started by adding your first client!
+                    {% endif %}
+                </p>
+                <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addClientModal">
+                    <i class="fas fa-plus"></i> Add Client
+                </button>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<!-- Add Client Modal -->
+<div class="modal fade" id="addClientModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header bg-primary text-white">
+                <h5 class="modal-title"><i class="fas fa-building"></i> Add New Client</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <form method="POST" action="{{ url_for('add_client') }}">
+                <div class="modal-body">
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Company Name <span class="text-danger">*</span></label>
+                            <input type="text" class="form-control" name="name" required placeholder="ABC Transport Ltd.">
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Contact Person</label>
+                            <input type="text" class="form-control" name="contact_person" placeholder="John Doe">
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Email</label>
+                            <input type="email" class="form-control" name="email" placeholder="contact@company.com">
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Phone</label>
+                            <input type="text" class="form-control" name="phone" placeholder="+91-9876543210">
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">GST / Tax ID</label>
+                            <input type="text" class="form-control" name="gst_number" placeholder="22AAAAA0000A1Z5">
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">City</label>
+                            <input type="text" class="form-control" name="city" placeholder="Mumbai">
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Address</label>
+                        <textarea class="form-control" name="address" rows="2" placeholder="Full address"></textarea>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Notes</label>
+                        <textarea class="form-control" name="notes" rows="2" placeholder="Additional notes or comments"></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                        <i class="fas fa-times"></i> Cancel
+                    </button>
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fas fa-save"></i> Save Client
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Edit Client Modal -->
+<div class="modal fade" id="editClientModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header bg-warning text-dark">
+                <h5 class="modal-title"><i class="fas fa-edit"></i> Edit Client</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form method="POST" id="editClientForm">
+                <div class="modal-body">
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Company Name <span class="text-danger">*</span></label>
+                            <input type="text" class="form-control" name="name" id="edit_name" required>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Contact Person</label>
+                            <input type="text" class="form-control" name="contact_person" id="edit_contact_person">
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Email</label>
+                            <input type="email" class="form-control" name="email" id="edit_email">
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Phone</label>
+                            <input type="text" class="form-control" name="phone" id="edit_phone">
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">GST / Tax ID</label>
+                            <input type="text" class="form-control" name="gst_number" id="edit_gst_number">
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Status</label>
+                            <select class="form-select" name="status" id="edit_status">
+                                <option value="active">Active</option>
+                                <option value="inactive">Inactive</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Address</label>
+                        <textarea class="form-control" name="address" id="edit_address" rows="2"></textarea>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Notes</label>
+                        <textarea class="form-control" name="notes" id="edit_notes" rows="2"></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                        <i class="fas fa-times"></i> Cancel
+                    </button>
+                    <button type="submit" class="btn btn-warning">
+                        <i class="fas fa-save"></i> Update Client
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function editClient(id, name, contact, email, phone, address, gst, status, notes) {
+    document.getElementById('editClientForm').action = `/admin/clients/edit/${id}`;
+    document.getElementById('edit_name').value = name;
+    document.getElementById('edit_contact_person').value = contact;
+    document.getElementById('edit_email').value = email;
+    document.getElementById('edit_phone').value = phone;
+    document.getElementById('edit_address').value = address;
+    document.getElementById('edit_gst_number').value = gst;
+    document.getElementById('edit_status').value = status;
+    document.getElementById('edit_notes').value = notes;
+    
+    new bootstrap.Modal(document.getElementById('editClientModal')).show();
+}
+
+function deleteClient(id, name) {
+    if (confirm(`⚠️ Are you sure you want to delete "${name}"?\n\nThis action cannot be undone.\n\nNote: Clients with licenses cannot be deleted.`)) {
+        fetch(`/admin/clients/delete/${id}`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            }
+        })
+        .then(response => {
+            if (response.ok) {
+                location.reload();
+            } else {
+                return response.json().then(data => {
+                    alert('Error: ' + (data.message || 'Failed to delete client'));
+                });
+            }
+        })
+        .catch(error => {
+            alert('Error: ' + error);
+        });
+    }
+}
+</script>
+{% endblock %}

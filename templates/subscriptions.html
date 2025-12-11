@@ -1,0 +1,149 @@
+{% extends "base.html" %}
+{% block title %}Subscriptions - GTMS Admin{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+  <div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+      <h2><i class="fas fa-sync-alt"></i> Subscriptions</h2>
+      <p class="text-muted mb-0">Manage client subscriptions and renewals</p>
+    </div>
+    <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addSubscriptionModal">
+      <i class="fas fa-plus"></i> Add Subscription
+    </button>
+  </div>
+
+  <div class="row mb-4">
+    <div class="col-md-3">
+      <div class="card text-center">
+        <div class="card-body">
+          <h3 class="text-primary">{{ total_subs }}</h3>
+          <p class="text-muted mb-0">Total Subscriptions</p>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-3">
+      <div class="card text-center">
+        <div class="card-body">
+          <h3 class="text-success">{{ active_subs }}</h3>
+          <p class="text-muted mb-0">Active</p>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-3">
+      <div class="card text-center">
+        <div class="card-body">
+          <h3 class="text-danger">{{ expired_subs }}</h3>
+          <p class="text-muted mb-0">Expired</p>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-3">
+      <div class="card text-center">
+        <div class="card-body">
+          <h3 class="text-info">₹{{ '%.2f' % monthly_revenue }}</h3>
+          <p class="text-muted mb-0">Monthly Revenue</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-body">
+      {% if subscriptions %}
+      <div class="table-responsive">
+        <table class="table table-hover align-middle">
+          <thead class="table-light">
+            <tr>
+              <th>ID</th>
+              <th>Client</th>
+              <th>Plan</th>
+              <th>Type</th>
+              <th>Amount</th>
+              <th>Start</th>
+              <th>End</th>
+              <th>Status</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for s in subscriptions %}
+            <tr>
+              <td>{{ s.id }}</td>
+              <td>{{ s.client.name }}</td>
+              <td>{{ s.plan_name }}</td>
+              <td>{{ s.plan_type|capitalize }}</td>
+              <td>₹{{ '%.2f' % s.amount }}</td>
+              <td>{{ s.start_date.strftime('%Y-%m-%d') }}</td>
+              <td>{{ s.end_date.strftime('%Y-%m-%d') }}</td>
+              <td>
+                {% if s.status == 'active' %}
+                  <span class="badge bg-success">Active</span>
+                {% elif s.status == 'expired' %}
+                  <span class="badge bg-danger">Expired</span>
+                {% else %}
+                  <span class="badge bg-secondary">{{ s.status|capitalize }}</span>
+                {% endif %}
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      {% else %}
+      <div class="text-center py-5">
+        <i class="fas fa-info-circle fa-3x text-muted mb-3"></i>
+        <h5 class="text-muted">No subscriptions yet</h5>
+      </div>
+      {% endif %}
+    </div>
+  </div>
+</div>
+
+<div class="modal fade" id="addSubscriptionModal" tabindex="-1">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <form method="POST" action="{{ url_for('add_subscription') }}">
+        <div class="modal-header bg-primary text-white">
+          <h5 class="modal-title"><i class="fas fa-plus"></i> Add Subscription</h5>
+          <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+        </div>
+        <div class="modal-body">
+          <div class="mb-3">
+            <label class="form-label">Client</label>
+            <select class="form-select" name="client_id" required>
+              {% for c in clients %}
+              <option value="{{ c.id }}">{{ c.name }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="mb-3">
+            <label class="form-label">Plan Name</label>
+            <input type="text" class="form-control" name="plan_name" placeholder="GTMS Professional" required>
+          </div>
+          <div class="mb-3">
+            <label class="form-label">Plan Type</label>
+            <select class="form-select" name="plan_type" required>
+              <option value="monthly">Monthly</option>
+              <option value="quarterly">Quarterly</option>
+              <option value="yearly" selected>Yearly</option>
+              <option value="lifetime">Lifetime</option>
+            </select>
+          </div>
+          <div class="mb-3">
+            <label class="form-label">Amount (INR)</label>
+            <input type="number" step="0.01" class="form-control" name="amount" required>
+          </div>
+          <div class="mb-3">
+            <label class="form-label">Notes</label>
+            <textarea class="form-control" name="notes" rows="2"></textarea>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+          <button type="submit" class="btn btn-primary">Create</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+{% endblock %}

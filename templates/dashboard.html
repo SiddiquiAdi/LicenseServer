@@ -1,0 +1,295 @@
+{% extends "base.html" %}
+{% block title %}Dashboard - GTMS Admin{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <h2 class="mb-4"><i class="fas fa-dashboard"></i> Dashboard Overview</h2>
+
+    <!-- ALERT SECTION: Expiring Licenses & Subscriptions -->
+    {% if expiring_soon_count > 0 or expired_licenses > 0 or expiring_subs_count > 0 %}
+    <div class="row mb-4">
+        {% if expired_licenses > 0 %}
+        <div class="col-md-4">
+            <div class="alert alert-danger">
+                <h5><i class="fas fa-exclamation-triangle"></i> Expired Licenses</h5>
+                <p class="mb-0"><strong>{{ expired_licenses }}</strong> license(s) have expired!</p>
+                <a href="{{ url_for('licenses_list') }}" class="alert-link">View →</a>
+            </div>
+        </div>
+        {% endif %}
+        
+        {% if expiring_soon_count > 0 %}
+        <div class="col-md-4">
+            <div class="alert alert-warning">
+                <h5><i class="fas fa-clock"></i> Expiring Soon</h5>
+                <p class="mb-0"><strong>{{ expiring_soon_count }}</strong> license(s) expire within 7 days</p>
+                <a href="#expiringLicenses" class="alert-link">View below →</a>
+            </div>
+        </div>
+        {% endif %}
+        
+        {% if expiring_subs_count > 0 %}
+        <div class="col-md-4">
+            <div class="alert alert-info">
+                <h5><i class="fas fa-sync-alt"></i> Subscriptions Ending</h5>
+                <p class="mb-0"><strong>{{ expiring_subs_count }}</strong> subscription(s) end within 30 days</p>
+                <a href="{{ url_for('subscriptions_list') }}" class="alert-link">View →</a>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+    {% endif %}
+
+    <!-- STATS CARDS -->
+    <div class="row mb-4">
+        <div class="col-md-3">
+            <div class="card text-center border-primary">
+                <div class="card-body">
+                    <i class="fas fa-users fa-2x text-primary mb-2"></i>
+                    <h3 class="text-primary">{{ total_clients }}</h3>
+                    <p class="text-muted mb-1">Total Clients</p>
+                    <small class="text-success">{{ active_clients }} Active</small>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-3">
+            <div class="card text-center border-success">
+                <div class="card-body">
+                    <i class="fas fa-key fa-2x text-success mb-2"></i>
+                    <h3 class="text-success">{{ active_licenses }}</h3>
+                    <p class="text-muted mb-1">Active Licenses</p>
+                    <small class="text-muted">{{ total_licenses }} Total</small>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-3">
+            <div class="card text-center border-info">
+                <div class="card-body">
+                    <i class="fas fa-rupee-sign fa-2x text-info mb-2"></i>
+                    <h3 class="text-info">₹{{ '%.2f' % total_revenue }}</h3>
+                    <p class="text-muted mb-1">Total Revenue</p>
+                    <small class="text-success">₹{{ '%.2f' % month_revenue }} This Month</small>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-3">
+            <div class="card text-center border-warning">
+                <div class="card-body">
+                    <i class="fas fa-exclamation-circle fa-2x text-warning mb-2"></i>
+                    <h3 class="text-warning">{{ outstanding_count }}</h3>
+                    <p class="text-muted mb-1">Pending Payments</p>
+                    <small class="text-danger">₹{{ '%.2f' % outstanding_payments }} Outstanding</small>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Secondary Stats -->
+    <div class="row mb-4">
+        <div class="col-md-3">
+            <div class="card text-center">
+                <div class="card-body">
+                    <h4>{{ active_subscriptions }}</h4>
+                    <p class="text-muted mb-0">Active Subscriptions</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card text-center">
+                <div class="card-body">
+                    <h4>{{ active_users }}</h4>
+                    <p class="text-muted mb-0">GTMS Users</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card text-center">
+                <div class="card-body">
+                    <h4>{{ active_devices }}</h4>
+                    <p class="text-muted mb-0">Active Devices</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card text-center">
+                <div class="card-body">
+                    <h4>{{ recent_renewals|length }}</h4>
+                    <p class="text-muted mb-0">Recent Renewals</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- EXPIRING LICENSES TABLE -->
+    {% if expiring_soon %}
+    <div class="card mb-4" id="expiringLicenses">
+        <div class="card-header bg-warning text-dark">
+            <h5 class="mb-0"><i class="fas fa-exclamation-triangle"></i> Licenses Expiring Within 7 Days</h5>
+        </div>
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-hover mb-0">
+                    <thead class="table-light">
+                        <tr>
+                            <th>License Key</th>
+                            <th>Client/Company</th>
+                            <th>Plan</th>
+                            <th>Expiry Date</th>
+                            <th>Days Left</th>
+                            <th>Action</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for lic in expiring_soon %}
+                        {% set days_left = ((lic.expiry_date - now()).days) %}
+                        <tr>
+                            <td><code>{{ lic.license_key }}</code></td>
+                            <td>{{ lic.company_name }}</td>
+                            <td><span class="badge bg-primary">{{ lic.plan_type }}</span></td>
+                            <td>{{ lic.expiry_date.strftime('%Y-%m-%d') }}</td>
+                            <td>
+                                <span class="badge {% if days_left <= 3 %}bg-danger{% else %}bg-warning text-dark{% endif %}">
+                                    {{ days_left }} days
+                                </span>
+                            </td>
+                            <td>
+                                <a href="{{ url_for('licenses_list') }}" class="btn btn-sm btn-primary">
+                                    <i class="fas fa-sync-alt"></i> Renew
+                                </a>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- TWO COLUMN LAYOUT -->
+    <div class="row">
+        <!-- LEFT: Recent Payments -->
+        <div class="col-md-6 mb-4">
+            <div class="card">
+                <div class="card-header bg-success text-white">
+                    <h5 class="mb-0"><i class="fas fa-rupee-sign"></i> Recent Payments</h5>
+                </div>
+                <div class="card-body p-0">
+                    {% if recent_payments %}
+                    <div class="table-responsive">
+                        <table class="table table-sm table-hover mb-0">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>Date</th>
+                                    <th>Client</th>
+                                    <th>Amount</th>
+                                    <th>Status</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for p in recent_payments %}
+                                <tr>
+                                    <td>{{ p.payment_date.strftime('%Y-%m-%d') }}</td>
+                                    <td>{{ p.client.name[:20] }}</td>
+                                    <td>₹{{ '%.2f' % p.amount }}</td>
+                                    <td>
+                                        <span class="badge {% if p.status == 'completed' %}bg-success{% else %}bg-warning{% endif %}">
+                                            {{ p.status|capitalize }}
+                                        </span>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    {% else %}
+                    <p class="text-center text-muted py-3">No payments yet</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <!-- RIGHT: Recent Renewals -->
+        <div class="col-md-6 mb-4">
+            <div class="card">
+                <div class="card-header bg-info text-white">
+                    <h5 class="mb-0"><i class="fas fa-redo-alt"></i> Recent Renewals</h5>
+                </div>
+                <div class="card-body p-0">
+                    {% if recent_renewals %}
+                    <div class="table-responsive">
+                        <table class="table table-sm table-hover mb-0">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>Date</th>
+                                    <th>Client</th>
+                                    <th>Type</th>
+                                    <th>New Expiry</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for r in recent_renewals %}
+                                <tr>
+                                    <td>{{ r.renewal_date.strftime('%Y-%m-%d') }}</td>
+                                    <td>{{ r.client.name[:20] }}</td>
+                                    <td><span class="badge bg-secondary">{{ r.renewal_type|replace('_', ' ')|title }}</span></td>
+                                    <td>{{ r.new_expiry_date.strftime('%Y-%m-%d') }}</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    {% else %}
+                    <p class="text-center text-muted py-3">No renewals yet</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Activity Logs -->
+    <div class="card">
+        <div class="card-header bg-dark text-white">
+            <h5 class="mb-0"><i class="fas fa-history"></i> Recent Activity</h5>
+        </div>
+        <div class="card-body p-0">
+            {% if recent_logs %}
+            <div class="table-responsive">
+                <table class="table table-sm table-hover mb-0">
+                    <thead class="table-light">
+                        <tr>
+                            <th>Timestamp</th>
+                            <th>Action</th>
+                            <th>Details</th>
+                            <th>IP Address</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for log in recent_logs %}
+                        <tr>
+                            <td>{{ log.timestamp.strftime('%Y-%m-%d %H:%M:%S') }}</td>
+                            <td><span class="badge bg-primary">{{ log.action }}</span></td>
+                            <td>{{ log.details[:50] }}{% if log.details|length > 50 %}...{% endif %}</td>
+                            <td>{{ log.ip_address or '-' }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% else %}
+            <p class="text-center text-muted py-3">No activity logs</p>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+{% block extra_js %}
+<script>
+// Auto-refresh dashboard every 5 minutes
+setTimeout(() => location.reload(), 300000);
+</script>
+{% endblock %}
+{% endblock %}

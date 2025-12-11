@@ -1,0 +1,246 @@
+{% extends "base.html" %}
+
+{% block title %}Employees - GTMS Admin{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+  <div class="d-flex justify-content-between align-items-center mb-4">
+    <h2><i class="fas fa-user-shield"></i> Employees Management</h2>
+  </div>
+
+  <div class="card">
+    <div class="card-body table-responsive">
+      <table class="table table-hover">
+        <thead>
+          <tr>
+            <th>ID</th>
+            <th>Emp Code</th>
+            <th>Name</th>
+            <th>Username</th>
+            <th>Role</th>
+            <th>Status</th>
+            <th>Joined</th>
+            <th>Left</th>
+            <th>Permissions</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+        {% for emp in employees %}
+          <tr>
+            <td>{{ emp.id }}</td>
+            <td>{{ emp.employee_code or '-' }}</td>
+            <td>{{ emp.full_name or '-' }}</td>
+            <td>{{ emp.username }}</td>
+            <td>
+              {% if emp.role == 'SuperAdmin' %}
+                <span class="badge bg-primary">SuperAdmin</span>
+              {% else %}
+                <span class="badge bg-secondary">Staff</span>
+              {% endif %}
+            </td>
+            <td>
+              {% if emp.is_active %}
+                <span class="badge bg-success">Active</span>
+              {% else %}
+                <span class="badge bg-danger">Left</span>
+              {% endif %}
+            </td>
+            <td>{{ emp.join_date.strftime('%Y-%m-%d') if emp.join_date else '-' }}</td>
+            <td>{{ emp.leave_date.strftime('%Y-%m-%d') if emp.leave_date else '-' }}</td>
+            <td>
+              {% set perms = [] %}
+              {% if emp.can_manage_clients %}{% set _ = perms.append('Clients') %}{% endif %}
+              {% if emp.can_manage_licenses %}{% set _ = perms.append('Licenses') %}{% endif %}
+              {% if emp.can_manage_payments %}{% set _ = perms.append('Payments') %}{% endif %}
+              {% if emp.can_manage_users %}{% set _ = perms.append('Users') %}{% endif %}
+              {{ ', '.join(perms) if perms else 'None' }}
+            </td>
+       <td>
+  <!-- View activity page -->
+  <a class="btn btn-sm btn-info"
+     href="{{ url_for('employee_detail', admin_id=emp.id) }}">
+    <i class="fas fa-list"></i>
+  </a>
+
+<!-- Edit employee (modal) -->
+<button class="btn btn-sm btn-warning"
+        type="button"
+        data-emp-id="{{ emp.id }}"
+        data-emp-code="{{ emp.employee_code or '' }}"
+        data-full-name="{{ emp.full_name or '' }}"
+        data-email="{{ emp.email or '' }}"
+        data-phone="{{ emp.phone or '' }}"
+        data-role="{{ emp.role }}"
+        data-is-active="{{ emp.is_active }}"
+        data-can-clients="{{ emp.can_manage_clients }}"
+        data-can-licenses="{{ emp.can_manage_licenses }}"
+        data-can-payments="{{ emp.can_manage_payments }}"
+        data-can-users="{{ emp.can_manage_users }}"
+        data-join-date="{{ emp.join_date.strftime('%Y-%m-%d') if emp.join_date else '' }}"
+        data-leave-date="{{ emp.leave_date.strftime('%Y-%m-%d') if emp.leave_date else '' }}"
+        onclick="openEditEmployeeModalFromData(this)">
+  <i class="fas fa-edit"></i>
+</button>
+
+</td>
+
+
+          </tr>
+        {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- Edit Employee Modal -->
+<div class="modal fade" id="editEmployeeModal" tabindex="-1">
+  <div class="modal-dialog">
+    <form method="POST" id="editEmployeeForm">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title">Edit Employee</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+        </div>
+        <div class="modal-body">
+          <input type="hidden" id="edit-employee-id">
+
+          <div class="mb-3">
+            <label class="form-label">Employee Code</label>
+            <input type="text" class="form-control" name="employee_code" id="edit-employee-code">
+          </div>
+
+          <div class="mb-3">
+            <label class="form-label">Full Name</label>
+            <input type="text" class="form-control" name="full_name" id="edit-full-name">
+          </div>
+
+          <div class="mb-3">
+            <label class="form-label">Email</label>
+            <input type="email" class="form-control" name="email" id="edit-email">
+          </div>
+
+          <div class="mb-3">
+            <label class="form-label">Phone</label>
+            <input type="text" class="form-control" name="phone" id="edit-phone">
+          </div>
+
+          <div class="mb-3">
+            <label class="form-label">Role</label>
+            <select class="form-select" name="role" id="edit-role">
+              <option value="SuperAdmin">SuperAdmin</option>
+              <option value="Staff">Staff</option>
+            </select>
+          </div>
+
+          <div class="mb-3">
+            <label class="form-label">Status</label>
+            <select class="form-select" name="status" id="edit-status">
+              <option value="active">Active</option>
+              <option value="left">Left</option>
+            </select>
+          </div>
+
+          <div class="mb-3">
+            <label class="form-label">Join Date</label>
+            <input type="date" class="form-control" name="join_date" id="edit-join-date" disabled>
+          </div>
+
+          <div class="mb-3">
+            <label class="form-label">Leave Date</label>
+            <input type="date" class="form-control" name="leave_date" id="edit-leave-date">
+          </div>
+
+          <hr>
+
+          <div class="mb-2">
+            <label class="form-label">Permissions</label>
+            <div class="form-check">
+              <input class="form-check-input" type="checkbox" name="can_manage_clients" id="perm-clients">
+              <label class="form-check-label" for="perm-clients">Manage Clients</label>
+            </div>
+            <div class="form-check">
+              <input class="form-check-input" type="checkbox" name="can_manage_licenses" id="perm-licenses">
+              <label class="form-check-label" for="perm-licenses">Manage Licenses</label>
+            </div>
+            <div class="form-check">
+              <input class="form-check-input" type="checkbox" name="can_manage_payments" id="perm-payments">
+              <label class="form-check-label" for="perm-payments">Manage Payments</label>
+            </div>
+            <div class="form-check">
+              <input class="form-check-input" type="checkbox" name="can_manage_users" id="perm-users">
+              <label class="form-check-label" for="perm-users">Manage GTMS Users</label>
+            </div>
+          </div>
+
+          <hr>
+
+          <div class="mb-3">
+            <label class="form-label">New Password (leave blank to keep)</label>
+            <input type="password" class="form-control" name="new_password">
+          </div>
+
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+          <button type="submit" class="btn btn-primary">Save Changes</button>
+        </div>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}
+{% block extra_js %}
+<script>
+function openEditEmployeeModalFromData(button) {
+  const data = button.dataset;
+  openEditEmployeeModal(
+    parseInt(data.empId),
+    data.empCode,
+    data.fullName,
+    data.email,
+    data.phone,
+    data.role,
+    data.isActive === 'True',
+    data.canClients === 'True',
+    data.canLicenses === 'True',
+    data.canPayments === 'True',
+    data.canUsers === 'True',
+    data.joinDate,
+    data.leaveDate
+  );
+}
+
+function openEditEmployeeModal(id, code, fullName, email, phone, role,
+                              isActive, canClients, canLicenses,
+                              canPayments, canUsers, joinDate, leaveDate) {
+
+  // Set form action with employee id
+  document.getElementById('editEmployeeForm').action = `/admin/employees/edit/${id}`;
+
+  // Fill fields
+  document.getElementById('edit-employee-code').value = code || '';
+  document.getElementById('edit-full-name').value = fullName || '';
+  document.getElementById('edit-email').value = email || '';
+  document.getElementById('edit-phone').value = phone || '';
+  document.getElementById('edit-role').value = role || 'Staff';
+  document.getElementById('edit-status').value = isActive ? 'active' : 'left';
+  document.getElementById('edit-join-date').value = joinDate || '';
+  document.getElementById('edit-leave-date').value = leaveDate || '';
+
+  // Permissions
+  document.getElementById('perm-clients').checked = !!canClients;
+  document.getElementById('perm-licenses').checked = !!canLicenses;
+  document.getElementById('perm-payments').checked = !!canPayments;
+  document.getElementById('perm-users').checked = !!canUsers;
+
+  // Show modal
+  const modal = new bootstrap.Modal(document.getElementById('editEmployeeModal'));
+  modal.show();
+}
+</script>
+{% endblock %}
+            
+
+

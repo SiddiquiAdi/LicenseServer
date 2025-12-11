@@ -1,0 +1,377 @@
+{% extends "base.html" %}
+
+{% block title %}Users - GTMS Admin{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2><i class="fas fa-users"></i> User Management</h2>
+        <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addUserModal">
+            <i class="fas fa-plus"></i> Add New User
+        </button>
+    </div>
+    
+    <!-- Users Table -->
+    <!-- Users Table -->
+<div class="card">
+  <div class="card-body">
+    <div class="table-responsive">
+      <table class="table table-hover" id="usersTable">
+        <thead>
+          <tr>
+            <th>ID</th>
+            <th>Username</th>
+            <th>Full Name</th>
+            <th>Role</th>
+            <th>Company</th>
+            <th>Email</th>
+            <th>Phone</th>
+            <th>License</th>
+            <th>Last Login</th>
+            <th>Status</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for user in users %}
+          <tr id="user-row-{{ user.id }}">
+            <td>{{ user.id }}</td>
+            <td><strong>{{ user.username }}</strong></td>
+            <td>{{ user.full_name }}</td>
+            <td><span class="badge bg-info">{{ user.role }}</span></td>
+            <td>{{ user.company_name or 'N/A' }}</td>
+            <td>{{ user.email or 'N/A' }}</td>
+            <td>{{ user.phone or 'N/A' }}</td>
+            <td>
+              {% if user.license %}
+                <small>{{ user.license.license_key[:15] }}...</small>
+              {% else %}
+                <span class="text-muted">No license</span>
+              {% endif %}
+            </td>
+            <td>
+              {% if user.last_login %}
+                {{ user.last_login.strftime('%Y-%m-%d %H:%M') }}
+              {% else %}
+                <span class="text-muted">Never</span>
+              {% endif %}
+            </td>
+
+            <!-- Status + Activate/Deactivate -->
+<td>
+  {% if user.is_active %}
+    <span class="badge bg-success">Active</span>
+    <button class="btn btn-sm btn-outline-danger ms-1"
+            onclick="toggleUserStatus({{ user.id }}, false, '{{ user.username }}')">
+      <i class="fas fa-pause"></i> Deactivate
+    </button>
+  {% else %}
+    <span class="badge bg-danger">Inactive</span>
+    <button class="btn btn-sm btn-outline-success ms-1"
+            onclick="toggleUserStatus({{ user.id }}, true, '{{ user.username }}')">
+      <i class="fas fa-play"></i> Activate
+    </button>
+  {% endif %}
+</td>
+
+
+<td>
+  <button class="btn btn-sm btn-warning"
+          onclick="editUser(
+            {{ user.id }},
+            '{{ user.username }}',
+            '{{ user.full_name }}',
+            '{{ user.role }}',
+            '{{ user.company_name or '' }}',
+            '{{ user.email or '' }}',
+            '{{ user.phone or '' }}',
+            {{ user.license_id or 'null' }},
+            '{{ 'true' if user.is_active else 'false' }}'
+          )">
+    <i class="fas fa-edit"></i>
+  </button>
+  <button class="btn btn-sm btn-danger"
+          onclick="deleteUser({{ user.id }}, '{{ user.username }}')">
+    <i class="fas fa-trash"></i>
+  </button>
+</td>
+
+
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+
+<!-- Add User Modal -->
+<div class="modal fade" id="addUserModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Add New User</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form method="POST" action="{{ url_for('add_user') }}">
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label">Username *</label>
+                        <input type="text" class="form-control" name="username" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Password *</label>
+                        <input type="password" class="form-control" name="password" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Full Name *</label>
+                        <input type="text" class="form-control" name="full_name" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Role</label>
+                        <select class="form-select" name="role">
+                            <option value="User">User</option>
+                            <option value="Manager">Manager</option>
+                            <option value="Admin">Admin</option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Company Name</label>
+                        <input type="text" class="form-control" name="company_name">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Email</label>
+                        <input type="email" class="form-control" name="email">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Phone</label>
+                        <input type="text" class="form-control" name="phone">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">License</label>
+                        <select class="form-select" name="license_id">
+                            <option value="">No License</option>
+                            {% for license in licenses %}
+                            <option value="{{ license.id }}">
+                                {{ license.company_name }} ({{ license.license_key }})
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Create User</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- ✅ EDIT USER MODAL -->
+<div class="modal fade" id="editUserModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Edit User</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form method="POST" id="editUserForm">
+                <div class="modal-body">
+                    <input type="hidden" name="user_id" id="edit_user_id">
+                    
+                    <div class="mb-3">
+                        <label class="form-label">Username</label>
+                        <input type="text" class="form-control" id="edit_username" readonly style="background: #f0f0f0;">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">New Password (leave blank to keep current)</label>
+                        <input type="password" class="form-control" name="password" id="edit_password">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Full Name *</label>
+                        <input type="text" class="form-control" name="full_name" id="edit_full_name" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Role</label>
+                        <select class="form-select" name="role" id="edit_role">
+                            <option value="User">User</option>
+                            <option value="Manager">Manager</option>
+                            <option value="Admin">Admin</option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Company Name</label>
+                        <input type="text" class="form-control" name="company_name" id="edit_company_name">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Email</label>
+                        <input type="email" class="form-control" name="email" id="edit_email">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Phone</label>
+                        <input type="text" class="form-control" name="phone" id="edit_phone">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">License</label>
+                        <select class="form-select" name="license_id" id="edit_license_id">
+                            <option value="">No License</option>
+                            {% for license in licenses %}
+                            <option value="{{ license.id }}">
+                                {{ license.company_name }} ({{ license.license_key }})
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Status</label>
+                        <select class="form-select" name="is_active" id="edit_is_active">
+                            <option value="true">Active</option>
+                            <option value="false">Inactive</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-warning">Update User</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// ✅ EDIT USER FUNCTION
+function editUser(id, username, fullName, role, company, email, phone, licenseId, isActiveStr) {
+  const isActive = (isActiveStr === 'true');
+    // Set form action
+    document.getElementById('editUserForm').action = `/admin/users/edit/${id}`;
+    
+    // Fill form fields
+    document.getElementById('edit_user_id').value = id;
+    document.getElementById('edit_username').value = username;
+    document.getElementById('edit_full_name').value = fullName;
+    document.getElementById('edit_role').value = role;
+    document.getElementById('edit_company_name').value = company;
+    document.getElementById('edit_email').value = email;
+    document.getElementById('edit_phone').value = phone;
+    document.getElementById('edit_password').value = '';  // Clear password
+    
+    // Set license
+    if (licenseId && licenseId !== 'null') {
+        document.getElementById('edit_license_id').value = licenseId;
+    } else {
+        document.getElementById('edit_license_id').value = '';
+    }
+    
+    // Set status
+    document.getElementById('edit_is_active').value = isActive ? 'true' : 'false';
+    
+    // Show modal
+    var modal = new bootstrap.Modal(document.getElementById('editUserModal'));
+    modal.show();
+}
+
+// DELETE USER FUNCTION
+function deleteUser(userId, username) {
+    if (confirm(`Are you sure you want to delete user "${username}"?`)) {
+        fetch(`/admin/users/delete/${userId}`, {
+            method: 'POST'
+        }).then(() => {
+            location.reload();
+        });
+    }
+}
+
+// ✅ PERFECT ACTIVATE/DEACTIVATE BUTTONS
+function toggleUserStatus(userId, newStatus, username) {
+    const statusText = newStatus ? 'activate' : 'deactivate';
+    
+    if (confirm(`Are you sure you want to ${statusText} user "${username}"?`)) {
+        fetch(`/admin/users/toggle-status/${userId}/${newStatus}`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                location.reload();  // Refresh to show new status
+            } else {
+                alert('Error: ' + data.message);
+            }
+        })
+        .catch(error => {
+            alert('Error: ' + error);
+        });
+    }
+}
+
+// ✅ PERFECT ACTIVATE/DEACTIVATE BUTTONS
+function toggleUserStatus(userId, newStatus, username) {
+    const statusText = newStatus ? 'activate' : 'deactivate';
+    
+    if (confirm(`Are you sure you want to ${statusText} user "${username}"?`)) {
+        fetch(`/admin/users/toggle-status/${userId}/${newStatus}`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                location.reload();
+            } else {
+                alert('Error: ' + data.message);
+            }
+        })
+        .catch(error => {
+            alert('Error: ' + error);
+        });
+    }
+}
+
+
+
+
+
+function toggleUserStatus(userId, isActive, username) {
+  if (!confirm(`Are you sure you want to ${isActive ? 'activate' : 'deactivate'} user "${username}"?`)) {
+    return;
+  }
+
+  fetch(`/admin/users/toggle-status/${userId}/${isActive ? 1 : 0}`, {
+    method: 'POST',
+    headers: {
+      'X-Requested-With': 'XMLHttpRequest'
+    }
+  })
+  .then(r => r.json())
+  .then(data => {
+    if (data.success) {
+      location.reload();
+    } else {
+      alert('Error: ' + data.message);
+    }
+  })
+  .catch(err => {
+    console.error('Request failed', err);
+    alert('Request failed');
+  });
+}
+
+
+
+
+
+
+</script>
+{% endblock %}
+
+
+
