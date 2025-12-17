@@ -1858,6 +1858,10 @@ def init_db():
             db.session.commit()
             print("✅ Default admin created: admin / admin123")
 
+@app.route('/create-tables')
+def create_tables():
+    db.create_all()
+    return "Tables created successfully!"
 
 if __name__ == '__main__':
     os.makedirs('database', exist_ok=True)
