@@ -1,0 +1,20 @@
+{% extends "emails/base.html" %}
+{% block content %}
+  <p>Hi {{ client_name }},</p>
+  <p>Your license has been <strong>activated</strong>.</p>
+
+  <p><strong>Details:</strong></p>
+  <table>
+    <tr><td><strong>Product</strong></td><td>{{ product_name }}</td></tr>
+    <tr><td><strong>License key</strong></td><td>{{ license_key }}</td></tr>
+    <tr><td><strong>Start date</strong></td><td>{{ start_date }}</td></tr>
+    <tr><td><strong>Expiry date</strong></td><td>{{ end_date }}</td></tr>
+  </table>
+
+  {% if notes %}
+    <p><strong>Notes:</strong> {{ notes }}</p>
+  {% endif %}
+
+  <p>If you face any issue, contact {{ support_email }}.</p>
+  <p>Regards,<br>{{ company_name }}</p>
+{% endblock %}

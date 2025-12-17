@@ -43,25 +43,26 @@
           </a>
         </li>
 
-        <!-- Users dropdown -->
-        <li class="nav-item dropdown">
-          <a class="nav-link dropdown-toggle" href="#" id="usersDropdown"
-             role="button" data-bs-toggle="dropdown" aria-expanded="false">
-            <i class="fas fa-users"></i> Users
-          </a>
-          <ul class="dropdown-menu" aria-labelledby="usersDropdown">
-            <li>
-              <a class="dropdown-item" href="{{ url_for('users_list') }}">
-                <i class="fas fa-list"></i> All Users
-              </a>
-            </li>
-            <li>
-              <a class="dropdown-item" href="{{ url_for('add_user') }}">
-                <i class="fas fa-user-plus"></i> Add User
-              </a>
-            </li>
-          </ul>
-        </li>
+       <!-- Users dropdown -->
+<li class="nav-item dropdown">
+  <a class="nav-link dropdown-toggle" href="#" id="usersDropdown"
+     role="button" data-bs-toggle="dropdown" aria-expanded="false">
+    <i class="fas fa-users"></i> Users
+  </a>
+  <ul class="dropdown-menu" aria-labelledby="usersDropdown">
+    <li>
+      <a class="dropdown-item" href="{{ url_for('users_list') }}">
+        <i class="fas fa-list"></i> All Users
+      </a>
+    </li>
+    <li>
+      <!-- ✅ Opens modal directly on users_list page -->
+      <a class="dropdown-item" href="{{ url_for('users_list') }}#addUserModal" data-bs-toggle="modal" data-bs-target="#addUserModal">
+        <i class="fas fa-user-plus"></i> Add User
+      </a>
+    </li>
+  </ul>
+</li>
 
         <!-- Employees dropdown -->
         <li class="nav-item dropdown">

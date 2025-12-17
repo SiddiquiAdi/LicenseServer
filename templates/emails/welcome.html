@@ -1,0 +1,14 @@
+{% extends "emails/base.html" %}
+{% block content %}
+  <p>Hi {{ client_name }},</p>
+  <p>Your account has been created in our license system.</p>
+  <p>
+    <strong>Email:</strong> {{ client_email }}<br>
+    <strong>Login URL:</strong> <a href="{{ login_url }}">{{ login_url }}</a>
+  </p>
+  {% if temp_password %}
+    <p><strong>Temporary password:</strong> {{ temp_password }}</p>
+    <p style="color:#c00;">Please change your password after first login.</p>
+  {% endif %}
+  <p>Regards,<br>{{ company_name }}</p>
+{% endblock %}

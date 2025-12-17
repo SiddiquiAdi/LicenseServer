@@ -104,8 +104,8 @@ class InvoiceGenerator:
                 str(idx),
                 item['description'],
                 str(item['quantity']),
-                f"₹{item['rate']:,.2f}",
-                f"₹{item['amount']:,.2f}",
+                f"Rs. {item['rate']:,.2f}",
+                f"Rs. {item['amount']:,.2f}",
             ])
         items_table = Table(items_data, colWidths=[0.5 * inch, 3.5 * inch, 0.8 * inch, 1.2 * inch, 1.2 * inch])
         items_table.setStyle(TableStyle([
@@ -122,12 +122,12 @@ class InvoiceGenerator:
         story.append(Spacer(1, 0.3 * inch))
 
         totals_data = [
-            ['Subtotal:', f"₹{invoice_data['subtotal']:,.2f}"],
-            [f"GST ({invoice_data['tax_rate']}%):", f"₹{invoice_data['tax_amount']:,.2f}"],
+            ['Subtotal:', f"Rs. {invoice_data['subtotal']:,.2f}"],
+            [f"GST ({invoice_data['tax_rate']}%):", f"Rs. {invoice_data['tax_amount']:,.2f}"],
         ]
         if invoice_data.get('discount', 0) > 0:
-            totals_data.append(['Discount:', f"- ₹{invoice_data['discount']:,.2f}"])
-        totals_data.append(['Total Amount:', f"₹{invoice_data['total']:,.2f}"])
+            totals_data.append(['Discount:', f"- Rs. {invoice_data['discount']:,.2f}"])
+        totals_data.append(['Total Amount:', f"Rs. {invoice_data['total']:,.2f}"])
 
         totals_table = Table(totals_data, colWidths=[5 * inch, 1.5 * inch])
         totals_table.setStyle(TableStyle([

@@ -11,16 +11,16 @@
         </button>
     </div>
     
-    <!-- NEW: Product Filter Buttons -->
+    <!-- ✅ Product Filter Buttons (Simplified) -->
     <div class="mb-3">
-        <a href="{{ url_for('licenses_list') }}" class="btn btn-sm btn-outline-secondary {% if not product_id %}active{% endif %}">
+        <a href="{{ url_for('licenses_list') }}" 
+           class="btn btn-sm btn-outline-secondary {% if product_filter == 'all' %}active{% endif %}">
             All Products
         </a>
         {% for product in products %}
-            <a href="{{ url_for('licenses_list', product_id=product.id) }}" 
-               class="btn btn-sm btn-outline-secondary 
-                      {% if product_id and product_id|int == product.id %}active{% endif %}">
-                {{ product.name }}
+            <a href="{{ url_for('licenses_list', product=product) }}" 
+               class="btn btn-sm btn-outline-secondary {% if product_filter == product %}active{% endif %}">
+                {{ product }}
             </a>
         {% endfor %}
         <span class="ms-3 text-muted small">
@@ -39,7 +39,7 @@
                             <th>ID</th>
                             <th>License Key</th>
                             <th>Company</th>
-                            <th>Product</th>  <!-- STEP 7: NEW COLUMN -->
+                            <th>Product</th>
                             <th>Plan Type</th>
                             <th>Subscription</th>
                             <th>Users</th>
@@ -65,9 +65,9 @@
                                 </button>
                             </td>
                             <td><strong>{{ license.company_name }}</strong></td>
-                            <!-- STEP 7: NEW PRODUCT COLUMN -->
+                            <!-- ✅ Product Column - Simple String -->
                             <td>
-                                <span class="badge bg-info">{{ license.product.name }}</span>
+                                <span class="badge bg-info">{{ license.product_name }}</span>
                             </td>
                             <td><span class="badge bg-primary">{{ license.plan_type }}</span></td>
                             <td><span class="badge bg-secondary">{{ license.subscription_type }}</span></td>
@@ -134,18 +134,18 @@
             </div>
             <form method="POST" action="{{ url_for('add_license') }}">
                 <div class="modal-body">
-                    <!-- STEP 6: NEW PRODUCT DROPDOWN -->
                     <div class="row">
                         <div class="col-md-6 mb-3">
                             <label class="form-label">Company Name *</label>
                             <input type="text" class="form-control" name="company_name" required placeholder="Enter company name">
                         </div>
+                        <!-- ✅ Product Dropdown - Simple String -->
                         <div class="col-md-6 mb-3">
                             <label class="form-label">Product *</label>
-                            <select class="form-select" name="product_id" required>
-                                {% for product in products %}
-                                    <option value="{{ product.id }}">{{ product.name }}</option>
-                                {% endfor %}
+                            <select class="form-select" name="product_name" required>
+                                <option value="GTMS">GTMS</option>
+                                <option value="HT Management">HT Management</option>
+                                <!-- Add more products here manually as needed -->
                             </select>
                         </div>
                     </div>
@@ -220,30 +220,26 @@
 {% block extra_js %}
 <script>
 function copyLicenseKey(licenseKey) {
-    // Create temporary input element
     var tempInput = document.createElement("input");
     tempInput.value = licenseKey;
     tempInput.style.position = "absolute";
     tempInput.style.left = "-9999px";
     document.body.appendChild(tempInput);
     
-    // Select and copy
     tempInput.select();
-    tempInput.setSelectionRange(0, 99999); // For mobile devices
+    tempInput.setSelectionRange(0, 99999);
     
     try {
         var successful = document.execCommand('copy');
         if (successful) {
-            // Show success alert
             alert("✓ License key copied!\n\n" + licenseKey);
         } else {
-            alert("❌ Failed to copy. Please copy manually:\n\n" + licenseKey);
+            alert("✗ Failed to copy. Please copy manually:\n\n" + licenseKey);
         }
     } catch (err) {
-        alert("❌ Copy error. Please copy manually:\n\n" + licenseKey);
+        alert("✗ Copy error. Please copy manually:\n\n" + licenseKey);
     }
     
-    // Remove temporary input
     document.body.removeChild(tempInput);
 }
 </script>

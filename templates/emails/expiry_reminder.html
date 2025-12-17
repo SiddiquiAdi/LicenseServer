@@ -1,0 +1,31 @@
+{% extends "emails/base.html" %}
+{% block content %}
+  <p>Hi {{ client_name }},</p>
+
+  <p>This is a reminder that your software license will expire soon.</p>
+
+  <p><strong>License details:</strong></p>
+  <table>
+    <tr>
+      <td><strong>Product</strong></td>
+      <td>{{ product_name }}</td>
+    </tr>
+    <tr>
+      <td><strong>License key</strong></td>
+      <td>{{ license_key }}</td>
+    </tr>
+    <tr>
+      <td><strong>Expiry date</strong></td>
+      <td>{{ end_date }}</td>
+    </tr>
+    <tr>
+      <td><strong>Days left</strong></td>
+      <td>{{ days_left }}</td>
+    </tr>
+  </table>
+
+  <p>Your license will stop working after the expiry date.</p>
+  <p>Please contact the developer to renew your license before it expires.</p>
+
+  <p>Regards,<br>{{ company_name }}</p>
+{% endblock %}

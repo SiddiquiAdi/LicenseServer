@@ -15,3 +15,15 @@ class Config:
 
     APP_NAME = 'GTMS License Server'
     APP_VERSION = '1.0.0'
+
+
+
+    # add these mail settings INSIDE the class, uppercase
+    MAIL_SERVER = "smtp.gmail.com"
+    MAIL_PORT = 587
+    MAIL_USE_TLS = True
+    MAIL_USE_SSL = False
+    MAIL_USERNAME = "siddiquiadi249@gmail.com"
+    MAIL_PASSWORD = "spixgevbzvdxzwva"   # no spaces
+    MAIL_DEFAULT_SENDER = "siddiquiadi249@gmail.com"
+

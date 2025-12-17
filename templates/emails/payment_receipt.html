@@ -1,0 +1,20 @@
+{% extends "emails/base.html" %}
+{% block content %}
+  <p>Hi {{ client_name }},</p>
+  <p>We have received your payment for the following:</p>
+
+  <table>
+    <tr><td><strong>Product</strong></td><td>{{ product_name }}</td></tr>
+    <tr><td><strong>License key</strong></td><td>{{ license_key }}</td></tr>
+    <tr><td><strong>Payment date</strong></td><td>{{ payment_date }}</td></tr>
+    <tr><td><strong>Amount</strong></td><td>{{ amount }}</td></tr>
+    <tr><td><strong>Mode</strong></td><td>{{ payment_mode }}</td></tr>
+  </table>
+
+  {% if notes %}
+    <p><strong>Notes:</strong> {{ notes }}</p>
+  {% endif %}
+
+  <p>This email serves as your payment receipt.</p>
+  <p>Regards,<br>{{ company_name }}</p>
+{% endblock %}

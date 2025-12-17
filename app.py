@@ -3,28 +3,41 @@ GTMS Admin Panel - Complete User & License Management
 """
 
 from flask import Flask, render_template, request, redirect, url_for, flash, session, jsonify
-
-from flask import Flask, render_template, request, redirect, url_for, flash, session, jsonify
 from flask_sqlalchemy import SQLAlchemy
+from flask_mail import Mail, Message
 from datetime import datetime, timedelta
 from werkzeug.security import generate_password_hash, check_password_hash
 import secrets
 import hashlib
 import os
 from pathlib import Path
+from functools import wraps
+
+# Import config and utilities
+from config import Config
 from utils.invoice_generator import InvoiceGenerator
 
-from config import Config
-
+# Create Flask app
 app = Flask(__name__)
 app.config.from_object(Config)
+
+# Debug: print mail config
+print("MAIL_SERVER:", app.config["MAIL_SERVER"])
+print("MAIL_PORT:", app.config["MAIL_PORT"])
+print("MAIL_USE_TLS:", app.config["MAIL_USE_TLS"])
+print("MAIL_USE_SSL:", app.config["MAIL_USE_SSL"])
+print("MAIL_USERNAME:", app.config["MAIL_USERNAME"])
 print("USING DATABASE:", app.config['SQLALCHEMY_DATABASE_URI'])
 
+# Initialize extensions
+db = SQLAlchemy(app)
+mail = Mail(app)  # ✅ create Mail here, before importing email_service
 
-db = SQLAlchemy(app)   # <-- ONLY ONE TIME IN THE WHOLE PROJECT
+# NOW import email_service (it will use the mail instance created above)
+from utils.email_service import send_templated_email
 
-from functools import wraps
-from flask import session, redirect, url_for, flash
+
+# Your models, routes, etc. below...
 
 def login_required(f):
     """Decorator for protected routes"""
@@ -249,12 +262,41 @@ class RenewalLog(db.Model):
 
 
 
+# ==================
+# LICENSE MODEL - SIMPLIFIED (No Product model)
+# ==================
+
 class License(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     client_id = db.Column(db.Integer, db.ForeignKey('client.id'), nullable=True)
     license_key = db.Column(db.String(100), unique=True, nullable=False)
     company_name = db.Column(db.String(200), nullable=False)
-    product_name = db.Column(db.String(100), default='GTMS', nullable=False)  # ✅
+    
+    # ✅ Simple string field for product - NO foreign key
+    product_name = db.Column(db.String(100), default='GTMS', nullable=False)
+    
+    # License configuration
+    max_users = db.Column(db.Integer, default=5)
+    max_devices = db.Column(db.Integer, default=3)
+    plan_type = db.Column(db.String(50), default='Standard')
+    subscription_type = db.Column(db.String(20), default='yearly')
+    
+    # Dates
+    activation_date = db.Column(db.DateTime, default=datetime.utcnow)
+    expiry_date = db.Column(db.DateTime, nullable=False)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    
+    # Contact
+    contact_email = db.Column(db.String(100))
+    contact_phone = db.Column(db.String(20))
+    
+    # Status
+    is_active = db.Column(db.Boolean, default=True)
+    notes = db.Column(db.Text)
+    
+    # Relationships (NO product relationship)
+    users = db.relationship('GTMSUser', backref='license', lazy=True)
+    devices = db.relationship('DeviceAccess', backref='license', lazy=True)
 
 
 
@@ -295,24 +337,94 @@ class AdminActivityLog(db.Model):
     ip_address = db.Column(db.String(50))
     timestamp = db.Column(db.DateTime, default=datetime.utcnow)
 
-class Product(db.Model):
-    """Software products (GTMS, HT Management, etc.)"""
-    id = db.Column(db.Integer, primary_key=True)
-    name = db.Column(db.String(100), unique=True, nullable=False)
-    description = db.Column(db.Text)
-    default_max_users = db.Column(db.Integer, default=5)
-    default_max_devices = db.Column(db.Integer, default=3)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+
+"""
+# Email Routes for testing
+
+@app.route("/admin/test-welcome")
+def test_welcome():
+    ok = send_templated_email(
+        subject="Welcome to License Server",
+        recipients="siddiquiadi249@gmail.com",
+        template_name="emails/welcome.html",
+        client_name="Test Client",
+        client_email="test@example.com",
+        login_url="http://localhost:5000/admin/login",
+        temp_password="temp123"
+    )
+    return "OK" if ok else "FAILED"
+
+
+@app.route("/admin/test-license-activated")
+def test_license_activated():
+    ok = send_templated_email(
+        subject="Your license has been activated",
+        recipients="siddiquiadi249@gmail.com",
+        template_name="emails/license_activated.html",
+        client_name="Test Client",
+        product_name="GTMS",
+        license_key="GTMS-TEST-1234",
+        start_date="2025-01-01",
+        end_date="2026-01-01",
+        notes="Demo activation for testing."
+    )
+    return "OK" if ok else "FAILED"
+
+
+@app.route("/admin/test-receipt")
+def test_receipt():
+    ok = send_templated_email(
+        subject="Payment receipt",
+        recipients="siddiquiadi249@gmail.com",
+        template_name="emails/payment_receipt.html",
+        client_name="Test Client",
+        product_name="GTMS",
+        license_key="GTMS-TEST-1234",
+        payment_date="2025-12-11",
+        amount="₹5,000",
+        payment_mode="UPI",
+        notes="Annual renewal"
+    )
+    return "OK" if ok else "FAILED"
+
+
+@app.route("/admin/test-expiry-reminder")
+def test_expiry_reminder():
+    ok = send_templated_email(
+        subject="Your license is expiring soon",
+        recipients="siddiquiadi249@gmail.com",
+        template_name="emails/expiry_reminder.html",
+        client_name="Test Client",
+        product_name="GTMS",
+        license_key="GTMS-TEST-1234",
+        end_date="2026-01-01",
+        days_left=7
+    )
+    return "OK" if ok else "FAILED"
     
-    # Relationship
-    licenses = db.relationship('License', backref='product', lazy=True)
 
 
+
+
+# Real Email Route: Add License + send activation email
+"""
 
 
     # ==================
 # ROUTES - Employees Management (Admin users)
 # ==================
+@app.route("/admin/test-email")
+def test_email():
+    msg = Message(
+        subject="License Server test email",
+        recipients=["siddiquiadi249@gmail.com"]
+    )
+    msg.body = "If you see this, your email config works."
+    mail.send(msg)
+    return "Test email sent!"
+
+
 @app.route('/admin/employees/<int:admin_id>')
 @login_required
 @permission_required('can_manage_users')
@@ -1157,7 +1269,6 @@ def add_subscription():
 # ROUTES - Payment Management
 # ==================
 
-
 @app.route('/admin/payments')
 @login_required
 @permission_required('can_manage_payments')
@@ -1166,13 +1277,17 @@ def payments_list():
     payments = Payment.query.order_by(Payment.payment_date.desc()).all()
 
     # Stats
-    total_revenue = db.session.query(db.func.sum(Payment.amount)).filter_by(status='completed').scalar() or 0
+    total_revenue = db.session.query(
+        db.func.sum(Payment.amount)
+    ).filter_by(status='completed').scalar() or 0
     total_payments = Payment.query.filter_by(status='completed').count()
     pending_payments = Payment.query.filter_by(status='pending').count()
 
     # This month revenue
     first_day = datetime.utcnow().replace(day=1, hour=0, minute=0, second=0, microsecond=0)
-    month_revenue = db.session.query(db.func.sum(Payment.amount)).filter(
+    month_revenue = db.session.query(
+        db.func.sum(Payment.amount)
+    ).filter(
         Payment.status == 'completed',
         Payment.payment_date >= first_day
     ).scalar() or 0
@@ -1194,7 +1309,7 @@ def payments_list():
 @login_required
 @permission_required('can_manage_payments')
 def add_payment():
-    """Add new payment"""
+    """Add new payment, generate invoice PDF, and email receipt"""
     try:
         data = request.form
 
@@ -1224,33 +1339,11 @@ def add_payment():
         db.session.add(payment)
         db.session.commit()
 
-        flash(f'✓ Payment recorded! Invoice: {invoice_num}', 'success')
-
-    except Exception as e:
-        db.session.rollback()
-        flash(f'✗ Error recording payment: {str(e)}', 'error')
-
-    return redirect(url_for('payments_list'))
-
-
-@app.route('/admin/payments/generate-invoice/<int:payment_id>')
-@login_required
-@permission_required('can_manage_payments')
-def generate_invoice(payment_id):
-    """Generate PDF invoice for payment"""
-    try:
+        # ===== Generate invoice PDF immediately =====
         from utils.invoice_generator import InvoiceGenerator
-
-        payment = Payment.query.get_or_404(payment_id)
-
-        # ✅ Block invoice generation for pending payments
-        if payment.status != 'completed':
-            flash('Cannot generate invoice for pending payment.', 'error')
-            return redirect(url_for('payments_list'))
 
         client = Client.query.get(payment.client_id)
 
-        # Prepare invoice data
         invoice_data = {
             'invoice_number': payment.invoice_number,
             'invoice_date': payment.payment_date,
@@ -1291,12 +1384,99 @@ def generate_invoice(payment_id):
         generator = InvoiceGenerator()
         pdf_path = generator.generate_invoice(invoice_data)
 
-        # Update payment record
         payment.invoice_generated = True
         payment.invoice_path = pdf_path
         db.session.commit()
 
+        # ===== Send receipt email with invoice attached =====
+        if client and client.email:
+            send_templated_email(
+                subject=f"Payment Receipt - {payment.invoice_number}",
+                recipients=client.email,
+                template_name="emails/payment_receipt.html",
+                client_name=client.name,
+                amount=payment.amount,
+                currency=payment.currency,
+                payment_for=payment.payment_for,
+                payment_method=payment.payment_method,
+                transaction_id=payment.transaction_id,
+                invoice_number=payment.invoice_number,
+                invoice_date=payment.payment_date.strftime("%d-%m-%Y"),
+                notes=payment.notes or "",
+                attachment_path=pdf_path,   # used by helper to attach PDF
+            )
+
+        flash(f'✓ Payment recorded! Invoice: {invoice_num}', 'success')
+
+    except Exception as e:
+        db.session.rollback()
+        flash(f'✗ Error recording payment: {str(e)}', 'error')
+
+    return redirect(url_for('payments_list'))
+
+
+@app.route('/admin/payments/generate-invoice/<int:payment_id>')
+@login_required
+@permission_required('can_manage_payments')
+def generate_invoice(payment_id):
+    """Manually regenerate & download PDF invoice for a payment"""
+    try:
+        from utils.invoice_generator import InvoiceGenerator
         from flask import send_file
+
+        payment = Payment.query.get_or_404(payment_id)
+
+        # Block invoice generation for pending payments
+        if payment.status != 'completed':
+            flash('Cannot generate invoice for pending payment.', 'error')
+            return redirect(url_for('payments_list'))
+
+        client = Client.query.get(payment.client_id)
+
+        invoice_data = {
+            'invoice_number': payment.invoice_number,
+            'invoice_date': payment.payment_date,
+            'due_date': payment.payment_date,
+            'company': {
+                'name': 'Your Company Name Pvt Ltd',
+                'address': 'Address Line 1\nCity, State - 400001',
+                'email': 'info@yourcompany.com',
+                'phone': '+91-9876543210',
+                'gst': '27AAAAA0000A1Z5'
+            },
+            'client': {
+                'name': client.name,
+                'contact': client.contact_person,
+                'address': client.address or '-',
+                'email': client.email,
+                'phone': client.phone,
+                'gst': client.gst_number
+            },
+            'items': [
+                {
+                    'description': payment.payment_for,
+                    'quantity': 1,
+                    'rate': payment.amount / 1.18,
+                    'amount': payment.amount / 1.18
+                }
+            ],
+            'subtotal': payment.amount / 1.18,
+            'tax_rate': 18,
+            'tax_amount': payment.amount - (payment.amount / 1.18),
+            'discount': 0,
+            'total': payment.amount,
+            'payment_method': payment.payment_method,
+            'transaction_id': payment.transaction_id,
+            'notes': 'Thank you for your business!'
+        }
+
+        generator = InvoiceGenerator()
+        pdf_path = generator.generate_invoice(invoice_data)
+
+        payment.invoice_generated = True
+        payment.invoice_path = pdf_path
+        db.session.commit()
+
         return send_file(pdf_path, as_attachment=True, download_name=f'{payment.invoice_number}.pdf')
 
     except Exception as e:
@@ -1314,32 +1494,45 @@ def generate_invoice(payment_id):
 @permission_required('can_manage_licenses')
 def licenses_list():
     product_filter = request.args.get('product', 'all')
-    
+
     query = License.query
     if product_filter != 'all':
         query = query.filter_by(product_name=product_filter)
-    
+
     licenses = query.order_by(License.created_at.desc()).all()
-    
-    # Get unique products from existing licenses
-    products = db.session.query(License.product_name.distinct()).filter(License.product_name.isnot(None)).all()
+
+    # Distinct product names from licenses
+    products = db.session.query(License.product_name.distinct()) \
+                         .filter(License.product_name.isnot(None)).all()
     products = [p[0] for p in products]
-    
+
     clients = Client.query.order_by(Client.name).all()
-    
-    return render_template('licenses.html', licenses=licenses, products=products, 
-                          clients=clients, now=datetime.utcnow(), product_filter=product_filter)
+
+    return render_template(
+        'licenses.html',
+        licenses=licenses,
+        products=products,
+        clients=clients,
+        now=datetime.utcnow(),
+        product_filter=product_filter
+    )
 
 
 
 
-@app.route('/admin/licenses/add', methods=['POST'])
+
+@app.route('/admin/licenses/add', methods=["GET", "POST"])
 @login_required
 @permission_required('can_manage_licenses')
 def add_license():
+    if request.method == "GET":
+        clients = Client.query.order_by(Client.name).all()
+        return render_template("admin/add_license.html", clients=clients)
+
+    # POST: create license
     try:
         data = request.form
-        
+
         license_key = f"GTMS-{secrets.token_hex(8).upper()}"
 
         subscription_type = data.get('subscription_type', 'yearly')
@@ -1350,32 +1543,55 @@ def add_license():
         else:
             expiry_date = datetime.utcnow() + timedelta(days=36500)
 
-        # ✅ simple product name string
         product_name = data.get('product_name', 'GTMS')
+
+        client_id = data.get('client_id') or None
+        client = Client.query.get(client_id) if client_id else None
 
         license = License(
             license_key=license_key,
-            company_name=data['company_name'],
-            client_id=data.get('client_id') or None,
-            product_name=product_name,  # ✅ use string field
+            company_name=data.get('company_name') or (client.name if client else None),
+            client_id=client_id,
+            product_name=product_name,
             max_users=int(data.get('max_users', 5)),
             max_devices=int(data.get('max_devices', 3)),
             plan_type=data.get('plan_type', 'Standard'),
             subscription_type=subscription_type,
             expiry_date=expiry_date,
-            contact_email=data.get('contact_email'),
+            contact_email=data.get('contact_email') or (client.email if client else None),
             contact_phone=data.get('contact_phone'),
             notes=data.get('notes')
         )
 
         db.session.add(license)
         db.session.commit()
+
+        # send activation email if email present
+        if license.contact_email:
+            send_templated_email(
+                subject="Your license has been activated",
+                recipients=license.contact_email,
+                template_name="emails/license_activated.html",
+                client_name=license.company_name,
+                product_name=license.product_name,
+                license_key=license.license_key,
+                start_date=datetime.utcnow().strftime("%d-%m-%Y"),
+                end_date=license.expiry_date.strftime("%d-%m-%Y"),
+                notes=license.notes,
+            )
+
         flash(f'License {license_key} created successfully!', 'success')
+
     except Exception as e:
         db.session.rollback()
         flash(f'Error creating license: {str(e)}', 'error')
-    
+
     return redirect(url_for('licenses_list'))
+
+
+
+
+
 
 
 
